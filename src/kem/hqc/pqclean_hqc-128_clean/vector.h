@@ -12,6 +12,13 @@
 
 void PQCLEAN_HQC128_CLEAN_vect_set_random_fixed_weight(seedexpander_state *ctx, uint64_t *v, uint16_t weight);
 
+void PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_rejection(seedexpander_state *ctx, uint64_t *v, uint16_t weight);
+void PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fisheryates(seedexpander_state *ctx, uint64_t *v, uint16_t weight);
+void PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(seedexpander_state *ctx, uint64_t *v, uint16_t weight);
+void PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(seedexpander_state *ctx, uint64_t *v, uint16_t weight);
+
+
+
 void PQCLEAN_HQC128_CLEAN_vect_set_random(seedexpander_state *ctx, uint64_t *v);
 
 
