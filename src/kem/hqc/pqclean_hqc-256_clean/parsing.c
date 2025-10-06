@@ -91,12 +91,12 @@ void PQCLEAN_HQC256_CLEAN_hqc_secret_key_from_string(uint64_t *x, uint64_t *y, u
     memcpy(sigma, sk + SEED_BYTES, VEC_K_SIZE_BYTES);
     PQCLEAN_HQC256_CLEAN_seedexpander_init(&sk_seedexpander, sk, SEED_BYTES);
 
-    PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, x, PARAM_OMEGA);
-    PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, y, PARAM_OMEGA);
+    //PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, x, PARAM_OMEGA);
+    //PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, y, PARAM_OMEGA);
 
     //Algorithm 1
-    //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_rejection(&sk_seedexpander, x, PARAM_OMEGA);
-    //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_rejection(&sk_seedexpander, y, PARAM_OMEGA);
+    PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_rejection(&sk_seedexpander, x, PARAM_OMEGA);
+    PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_rejection(&sk_seedexpander, y, PARAM_OMEGA);
 
 
     //Algorithm 3

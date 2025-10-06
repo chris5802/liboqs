@@ -45,12 +45,12 @@ void PQCLEAN_HQC256_CLEAN_hqc_pke_keygen(uint8_t *pk, uint8_t *sk) {
     PQCLEAN_HQC256_CLEAN_seedexpander_init(&pk_seedexpander, pk_seed, SEED_BYTES);
 
     // Compute secret key
-    PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, x, PARAM_OMEGA);
-    PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, y, PARAM_OMEGA);
+    //PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, x, PARAM_OMEGA);
+    //PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, y, PARAM_OMEGA);
 
     // Algorithm 1 - Rejection Sampling
-    //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_rejection(&sk_seedexpander, x, PARAM_OMEGA);
-    //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_rejection(&sk_seedexpander, y, PARAM_OMEGA);
+    PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_rejection(&sk_seedexpander, x, PARAM_OMEGA);
+    PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_rejection(&sk_seedexpander, y, PARAM_OMEGA);
 
     
     // Algorithm 3 - CTUS
@@ -104,14 +104,14 @@ void PQCLEAN_HQC256_CLEAN_hqc_pke_encrypt(uint64_t *u, uint64_t *v, uint8_t *m, 
     PQCLEAN_HQC256_CLEAN_hqc_public_key_from_string(h, s, pk);
 
     // Generate r1, r2 and e
-    PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&vec_seedexpander, r1, PARAM_OMEGA_R);
-    PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&vec_seedexpander, r2, PARAM_OMEGA_R);
-    PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&vec_seedexpander, e, PARAM_OMEGA_E);
+    //PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&vec_seedexpander, r1, PARAM_OMEGA_R);
+    //PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&vec_seedexpander, r2, PARAM_OMEGA_R);
+    //PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&vec_seedexpander, e, PARAM_OMEGA_E);
 
     // Generate r1, r2 and e - Algorithm 2 fisheryates
-    //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fisheryates(&vec_seedexpander, r1, PARAM_OMEGA_R);
-    //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fisheryates(&vec_seedexpander, r2, PARAM_OMEGA_R);
-    //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fisheryates(&vec_seedexpander, e, PARAM_OMEGA_E);
+    PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fisheryates(&vec_seedexpander, r1, PARAM_OMEGA_R);
+    PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fisheryates(&vec_seedexpander, r2, PARAM_OMEGA_R);
+    PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fisheryates(&vec_seedexpander, e, PARAM_OMEGA_E);
 
     // Generate r1, r2 and e - Algorithm 3 CTUS
     //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_ctus(&vec_seedexpander, r1, PARAM_OMEGA_R);
