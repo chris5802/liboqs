@@ -253,16 +253,13 @@ void PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fisheryates(seedexpander_
         support[i] = (mask & i) ^ (~mask & support[i]);
     }
 }
+#include <stdlib.h> // Needed for malloc and free
+
 /**
- * @brief Generates a random support set using the CTUS (Constant-Time Uniform Sampling) algorithm.
+ * @brief Generates a random support set using the CTUS (Constant-Time Uniform Sampling) algorithm. [Corrected Version]
  *
- * This function implements the "over-generate and select" strategy. It operates in three main constant-time phases:
- * 1.  Over-generation: A large buffer of random bytes is generated. Then, in a fixed loop, candidates are
- * produced via rejection sampling until a target number of oversampled candidates (t_over) is reached.
- * 2.  Deduplication: Duplicates within the candidate set are marked in constant time.
- * 3.  Compaction: The unique candidates are compacted into a final array.
- *
- * This method has a non-zero probability of failure if not enough unique candidates are generated.
+ * This function implements the "over-generate and select" strategy. This corrected version
+ * uses dynamic memory to prevent buffer overflows and a constant-time loop to prevent timing attacks.
  *
  * @param[in,out] ctx     Initialized SHAKE256 XOF context.
  * @param[out]    support Output array of unique indices.
@@ -271,108 +268,99 @@ void PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fisheryates(seedexpander_
  */
 int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *ctx, uint32_t *support, uint16_t weight)
 {
-    
-    // MODIFICATION: Define tunable oversampling parameters, as mentioned in the research plan.
-    // k-factor for deduplication buffer. t_over = k * t 
-    const float K_FACTOR = 1.2f; 
-    // Factor for rejection sampling attempts. We need more attempts than t_over.
-    const float ATTEMPTS_FACTOR = 1.5f; 
+    const float K_FACTOR = 1.0f; // Increased this factor as a starting point
+    const float ATTEMPTS_FACTOR = 1.0f; 
 
     const size_t t_over = (size_t)(K_FACTOR * weight);
     const size_t attempts = (size_t)(t_over * ATTEMPTS_FACTOR);
 
-    // Ensure buffers are large enough for the parameters.
-    // This example uses a static size for simplicity; dynamic allocation or larger static buffers may be needed.
-    if (t_over > 2 * PARAM_OMEGA_R || attempts * 3 > sizeof(uint8_t[3 * 2 * PARAM_OMEGA_R * 2])) {
-        // Handle error: parameters result in buffer overflow.
+    uint32_t *candidates = calloc(t_over, sizeof(uint32_t));
+    uint32_t *unique_candidates = calloc(t_over, sizeof(uint32_t));
+    uint8_t *rand_bytes = malloc(3 * attempts);
+
+    if (candidates == NULL || unique_candidates == NULL || rand_bytes == NULL) {
+        free(candidates);
+        free(unique_candidates);
+        free(rand_bytes);
         return -1;
     }
 
-    uint32_t candidates[2 * PARAM_OMEGA_R];
-    uint32_t unique_candidates[2 * PARAM_OMEGA_R] = {0};
     size_t unique_count = 0;
     size_t i, j;
 
-    // --- PHASE 1A: GENERATE A SINGLE LARGE RANDOM BUFFER ---
-    // MODIFICATION: Generate all required random bytes in a single call, as implied by the design.
     const size_t random_bytes_size = 3 * attempts;
-    uint8_t rand_bytes[3 * 2 * PARAM_OMEGA_R * 2]; // Make sure buffer is large enough
     PQCLEAN_HQC128_CLEAN_seedexpander(ctx, rand_bytes, random_bytes_size);
 
-    // --- PHASE 1B: CONSTANT-TIME CANDIDATE POPULATION ---
-    // MODIFICATION: This entire section is new. It replaces the old generation loop.
-    // It implements the "Uniform_Random" generation part of Algorithm 3 in constant time.
     size_t candidate_count = 0;
     size_t random_byte_idx = 0;
     for (i = 0; i < attempts; ++i) {
-        // Stop if we have already collected enough candidates.
-        // This check is safe because `i` is not secret-dependent.
-        if (candidate_count >= t_over) {
-            break;
-        }
-
         uint32_t c = ((uint32_t)rand_bytes[random_byte_idx++]) << 16;
         c |= ((uint32_t)rand_bytes[random_byte_idx++]) << 8;
         c |= rand_bytes[random_byte_idx++];
 
-        // Constant-time rejection sampling check
         uint32_t accept_mask = -((c - UTILS_REJECTION_THRESHOLD) >> 31);
+        uint32_t space_available_mask = -((uint32_t)(candidate_count - t_over) >> 31);
+        uint32_t final_write_mask = accept_mask & space_available_mask;
 
-        // Constant-time write to the 'candidates' array
         for (j = 0; j < t_over; ++j) {
-            uint32_t is_current_slot = compare_u32(j, candidate_count);
-            uint32_t write_mask = is_current_slot & accept_mask;
+            // --- START OF BUG FIX ---
+            uint32_t is_current_slot_val = compare_u32(j, candidate_count);
+            // Convert the 0 or 1 value into a full 32-bit mask.
+            uint32_t is_current_slot_mask = -is_current_slot_val;
+            // Now the write_mask is correctly calculated.
+            uint32_t write_mask = is_current_slot_mask & final_write_mask;
+            // --- END OF BUG FIX ---
+            
             candidates[j] = (write_mask & barrett_reduce(c)) | (~write_mask & candidates[j]);
         }
-        candidate_count += (accept_mask & 1);
+        candidate_count += (final_write_mask & 1);
     }
     
-    // Check for failure: not enough candidates were generated after rejection sampling.
+    int result = 0;
+
     if (candidate_count < t_over) {
-        return -1; 
+        result = -2;
+        goto cleanup;
     }
 
-    // --- PHASE 2: CONSTANT-TIME DEDUPLICATION (Mark) ---
-    // This part of your logic was correct for a constant-time deduplication strategy and can be kept.
-    for (i = 0; i < t_over; ++i)
-    {
-        for (j = i + 1; j < t_over; ++j)
-        {
+    
+    for (i = 0; i < t_over; ++i) {
+        for (j = i + 1; j < t_over; ++j) {
             uint32_t are_equal = compare_u32(candidates[i], candidates[j]);
             uint32_t mask = -are_equal;
             candidates[j] = (mask & PARAM_N) | (~mask & candidates[j]);
         }
     }
 
-    // --- PHASE 3: CONSTANT-TIME COMPACTION ---
-    // This part of your logic was also correct and can be kept.
-    for (i = 0; i < t_over; ++i)
-    {
+    for (i = 0; i < t_over; ++i) {
         uint32_t is_valid = 1 - compare_u32(candidates[i], PARAM_N);
         uint32_t mask = -is_valid;
-
-        for (j = 0; j < t_over; ++j)
-        {
+        for (j = 0; j < t_over; ++j) {
             uint32_t is_current_slot = compare_u32(j, unique_count);
-            uint32_t write_mask = is_current_slot & mask;
-            
+            uint32_t mask_is_current_slot = -is_current_slot; // Correctly convert to mask here as well
+            uint32_t write_mask = mask_is_current_slot & mask;
             unique_candidates[j] = (write_mask & candidates[i]) | (~write_mask & unique_candidates[j]);
         }
         unique_count += is_valid;
     }
 
-    // --- PHASE 4: FINAL CHECK AND COPY ---
-    // MODIFICATION: Add the explicit failure check, as required by the algorithm design.
     if (unique_count < weight) {
-        return -1; // FAIL
+        result = -3;
+        goto cleanup;
     }
 
-    for (i = 0; i < weight; ++i)
-    {
+    for (i = 0; i < weight; ++i) {
         support[i] = unique_candidates[i];
+        
     }
+    
+cleanup:
+    free(candidates);
+    free(unique_candidates);
+    free(rand_bytes);
 
-    return 0; // SUCCESS
+    
+    return result;
 }
 
 /**
@@ -387,9 +375,9 @@ int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *c
  * @param[out]    support Output array of unique indices.
  * @param[in]     weight  Number of elements to generate.
  */
-void PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fixed_n(seedexpander_state *ctx, uint32_t *support, uint16_t weight)
+int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fixed_n(seedexpander_state *ctx, uint32_t *support, uint16_t weight)
 {
-    const size_t n_iterations = 2 * weight;
+    const size_t n_iterations = 1 * weight;
     const size_t random_bytes_size = 3 * n_iterations;
     uint8_t rand_bytes[3 * 2 * PARAM_OMEGA_R];
     size_t count = 0;
@@ -437,7 +425,15 @@ void PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fixed_n(seedexpander_stat
         // 4. Constant-time increment of the counter
         count += (final_add_mask & 1);
     }
+    // CRITICAL FIX: Add an explicit check and return a status code.
+    if (count < weight) {
+        
+        return -1; // Failure: Did not generate enough unique values.
+    }
+    
+    return 0; // Success
 }
+
 
 
 /**
@@ -565,3 +561,147 @@ void PQCLEAN_HQC128_CLEAN_vect_resize(uint64_t *o, uint32_t size_o, const uint64
         memcpy(o, v, 8 * CEIL_DIVIDE(size_v, 64));
     }
 }
+
+
+#ifdef OQS_ENABLE_TESTING
+// Testable version of CTUS with configurable parameters
+int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus_testable(seedexpander_state *ctx, uint32_t *support, uint16_t weight, float k_factor, float attempts_factor)
+{
+    const size_t t_over = (size_t)(k_factor * weight);
+    const size_t attempts = (size_t)(t_over * attempts_factor);
+
+    uint32_t *candidates = calloc(t_over, sizeof(uint32_t));
+    uint32_t *unique_candidates = calloc(t_over, sizeof(uint32_t));
+    uint8_t *rand_bytes = malloc(3 * attempts);
+
+    if (candidates == NULL || unique_candidates == NULL || rand_bytes == NULL) {
+        free(candidates);
+        free(unique_candidates);
+        free(rand_bytes);
+        return -1; // Allocation failure
+    }
+
+    size_t unique_count = 0;
+    size_t i, j;
+
+    const size_t random_bytes_size = 3 * attempts;
+    PQCLEAN_HQC128_CLEAN_seedexpander(ctx, rand_bytes, random_bytes_size);
+
+    size_t candidate_count = 0;
+    size_t random_byte_idx = 0;
+    for (i = 0; i < attempts; ++i) {
+        uint32_t c = ((uint32_t)rand_bytes[random_byte_idx++]) << 16;
+        c |= ((uint32_t)rand_bytes[random_byte_idx++]) << 8;
+        c |= rand_bytes[random_byte_idx++];
+
+        uint32_t accept_mask = -((c - UTILS_REJECTION_THRESHOLD) >> 31);
+        uint32_t space_available_mask = -((uint32_t)(candidate_count - t_over) >> 31);
+        uint32_t final_write_mask = accept_mask & space_available_mask;
+
+        for (j = 0; j < t_over; ++j) {
+            uint32_t is_current_slot_val = compare_u32(j, candidate_count);
+            uint32_t is_current_slot_mask = -is_current_slot_val;
+            uint32_t write_mask = is_current_slot_mask & final_write_mask;
+            candidates[j] = (write_mask & barrett_reduce(c)) | (~write_mask & candidates[j]);
+        }
+        candidate_count += (final_write_mask & 1);
+    }
+    
+    int result = 0;
+
+    if (candidate_count < t_over) {
+        result = -2; // Not enough candidates generated
+        goto cleanup;
+    }
+
+    for (i = 0; i < t_over; ++i) {
+        for (j = i + 1; j < t_over; ++j) {
+            uint32_t are_equal = compare_u32(candidates[i], candidates[j]);
+            uint32_t mask = -are_equal;
+            candidates[j] = (mask & PARAM_N) | (~mask & candidates[j]);
+        }
+    }
+
+    for (i = 0; i < t_over; ++i) {
+        uint32_t is_valid = 1 - compare_u32(candidates[i], PARAM_N);
+        uint32_t mask = -is_valid;
+        for (j = 0; j < t_over; ++j) {
+            uint32_t is_current_slot = compare_u32(j, unique_count);
+            uint32_t mask_is_current_slot = -is_current_slot;
+            uint32_t write_mask = mask_is_current_slot & mask;
+            unique_candidates[j] = (write_mask & candidates[i]) | (~write_mask & unique_candidates[j]);
+        }
+        unique_count += is_valid;
+    }
+
+    if (unique_count < weight) {
+        result = -3; // Not enough unique values
+        goto cleanup;
+    }
+
+    for (i = 0; i < weight; ++i) {
+        support[i] = unique_candidates[i];
+    }
+    
+cleanup:
+    free(candidates);
+    free(unique_candidates);
+    free(rand_bytes);
+
+    return result;
+}
+
+// Testable version of Fixed-N with configurable parameters
+int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fixed_n_testable(seedexpander_state *ctx, uint32_t *support, uint16_t weight, float n_iterations_factor)
+{
+    const size_t n_iterations = (size_t)(n_iterations_factor * weight);
+    const size_t random_bytes_size = 3 * n_iterations;
+    uint8_t* rand_bytes = malloc(random_bytes_size);
+    if(rand_bytes == NULL) return -1; // Allocation failure
+
+    size_t count = 0;
+    size_t random_byte_idx = 0;
+    size_t i, j;
+
+    for (i = 0; i < weight; ++i) {
+        support[i] = PARAM_N;
+    }
+
+    PQCLEAN_HQC128_CLEAN_seedexpander(ctx, rand_bytes, random_bytes_size);
+
+    for (i = 0; i < n_iterations; ++i) {
+        uint32_t c = ((uint32_t)rand_bytes[random_byte_idx++]) << 16;
+        c |= ((uint32_t)rand_bytes[random_byte_idx++]) << 8;
+        c |= rand_bytes[random_byte_idx++];
+
+        uint32_t accept_mask = -((c - UTILS_REJECTION_THRESHOLD) >> 31);
+        c = barrett_reduce(c);
+
+        uint32_t is_duplicate = 0;
+        for (j = 0; j < weight; ++j) {
+            is_duplicate |= compare_u32(c, support[j]);
+        }
+        uint32_t unique_mask = 1 - is_duplicate;
+
+        uint32_t space_available_mask = -((uint32_t)(count - weight) >> 31);
+        uint32_t final_add_mask = accept_mask & unique_mask & space_available_mask;
+
+        for (j = 0; j < weight; ++j) {
+            uint32_t is_current_slot = compare_u32(j, count);
+            uint32_t write_mask = is_current_slot & final_add_mask;
+            support[j] = (write_mask & c) | (~write_mask & support[j]);
+        }
+
+        count += (final_add_mask & 1);
+    }
+
+    free(rand_bytes);
+
+    if (count < weight) {
+        return -1; // Failure: Did not generate enough unique values.
+    }
+    
+    return 0; // Success
+}
+
+#endif

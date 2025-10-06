@@ -102,6 +102,18 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows" AND BUILD_SHARED_LIBS)
     endif()
 endif()
 
+# Sampling success test
+add_executable(test_sampling_success
+    test_sampling_success.c
+    ../src/kem/hqc/pqclean_hqc-128_clean/vector.c
+    ../src/kem/hqc/pqclean_hqc-128_clean/shake_prng.c
+    ../src/common/pqclean_shims/fips202.c
+    ../src/kem/hqc/pqclean_hqc-128_clean/parsing.c
+)
+target_include_directories(test_sampling_success PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/common/pqclean_shims)
+target_compile_definitions(test_sampling_success PRIVATE OQS_ENABLE_TESTING)
+target_link_libraries(test_sampling_success PRIVATE ${TEST_DEPS})
+
 add_executable(speed_kem speed_kem.c)
 target_link_libraries(speed_kem PRIVATE ${TEST_DEPS})
 
