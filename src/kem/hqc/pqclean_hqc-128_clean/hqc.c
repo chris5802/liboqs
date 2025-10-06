@@ -8,15 +8,7 @@
 #include "vector.h"
 #include <stdint.h>
 
-// 在檔案頂部 #include 下方加入這個函式
-#include <stdio.h> // 確保包含了 stdio.h
-static void print_hex(const char* label, const uint8_t* data, size_t len) {
-    printf("%s: ", label);
-    for (size_t i = 0; i < len; ++i) {
-        printf("%02x", data[i]);
-    }
-    printf("\n");
-}
+
 
 /**
  * @file hqc.c
@@ -38,10 +30,7 @@ static void print_hex(const char* label, const uint8_t* data, size_t len) {
  */
 void PQCLEAN_HQC128_CLEAN_hqc_pke_keygen(uint8_t *pk, uint8_t *sk) {
 
-    printf("\n--- Checking constants ---\n");
-    printf("UTILS_REJECTION_THRESHOLD = %u\n", UTILS_REJECTION_THRESHOLD);
-    printf("PARAM_N_MU                = %llu\n", PARAM_N_MU);
-    printf("--------------------------\n");
+    
 
     seedexpander_state sk_seedexpander;
     seedexpander_state pk_seedexpander;
@@ -75,12 +64,12 @@ void PQCLEAN_HQC128_CLEAN_hqc_pke_keygen(uint8_t *pk, uint8_t *sk) {
     //PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fisheryates(&sk_seedexpander, y, PARAM_OMEGA);
     
     // Algorithm 3 - CTUS
-    //PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(&sk_seedexpander, x, PARAM_OMEGA);
-    //PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(&sk_seedexpander, y, PARAM_OMEGA);
+    PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(&sk_seedexpander, x, PARAM_OMEGA);
+    PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(&sk_seedexpander, y, PARAM_OMEGA);
 
     // Algorithm 4 - Fixed-N Rejection
-    PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&sk_seedexpander, x, PARAM_OMEGA);
-    PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&sk_seedexpander, y, PARAM_OMEGA);
+    //PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&sk_seedexpander, x, PARAM_OMEGA);
+    //PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&sk_seedexpander, y, PARAM_OMEGA);
 
     // Compute public key
     PQCLEAN_HQC128_CLEAN_vect_set_random(&pk_seedexpander, h);
@@ -118,9 +107,9 @@ void PQCLEAN_HQC128_CLEAN_hqc_pke_encrypt(uint64_t *u, uint64_t *v, uint8_t *m, 
     uint64_t tmp1[VEC_N_SIZE_64] = {0};
     uint64_t tmp2[VEC_N_SIZE_64] = {0};
 
-    printf("\n--- Calling hqc_pke_encrypt ---\n");
-    print_hex("Input theta", theta, 32); // 只印前 32 bytes
-    print_hex("Input m", m, VEC_K_SIZE_BYTES);
+    //printf("\n--- Calling hqc_pke_encrypt ---\n");
+    //print_hex("Input theta", theta, 32); // 只印前 32 bytes
+    //print_hex("Input m", m, VEC_K_SIZE_BYTES);
 
     // Create seed_expander from theta
     PQCLEAN_HQC128_CLEAN_seedexpander_init(&vec_seedexpander, theta, SEED_BYTES);
@@ -138,11 +127,15 @@ void PQCLEAN_HQC128_CLEAN_hqc_pke_encrypt(uint64_t *u, uint64_t *v, uint8_t *m, 
     //PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fisheryates(&vec_seedexpander, r2, PARAM_OMEGA_R);
     //PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fisheryates(&vec_seedexpander, e, PARAM_OMEGA_E);
 
+    // Generate r1, r2 and e - Algorithm 3 CTUS
+    PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(&vec_seedexpander, r1, PARAM_OMEGA_R);
+    PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(&vec_seedexpander, r2, PARAM_OMEGA_R);
+    PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(&vec_seedexpander, e, PARAM_OMEGA_E);
 
     // Generate r1, r2 and e - Algorithm 4 Fixed_n Rejection
-    PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&vec_seedexpander, r1, PARAM_OMEGA_R);
-    PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&vec_seedexpander, r2, PARAM_OMEGA_R);
-    PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&vec_seedexpander, e, PARAM_OMEGA_E);
+    //PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&vec_seedexpander, r1, PARAM_OMEGA_R);
+    //PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&vec_seedexpander, r2, PARAM_OMEGA_R);
+    //PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&vec_seedexpander, e, PARAM_OMEGA_E);
 
     // Compute u = r1 + r2.h
     PQCLEAN_HQC128_CLEAN_vect_mul(u, r2, h);
@@ -160,9 +153,9 @@ void PQCLEAN_HQC128_CLEAN_hqc_pke_encrypt(uint64_t *u, uint64_t *v, uint8_t *m, 
 
     PQCLEAN_HQC128_CLEAN_seedexpander_release(&vec_seedexpander);
 
-    print_hex("Output u", (uint8_t*)u, 32); // 只印前 32 bytes
-    print_hex("Output v", (uint8_t*)v, 32); // 只印前 32 bytes
-    printf("--- Exiting hqc_pke_encrypt ---\n");
+    //print_hex("Output u", (uint8_t*)u, 32); // 只印前 32 bytes
+    //print_hex("Output v", (uint8_t*)v, 32); // 只印前 32 bytes
+    //printf("--- Exiting hqc_pke_encrypt ---\n");
 }
 
 

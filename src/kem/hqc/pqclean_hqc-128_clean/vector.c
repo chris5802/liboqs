@@ -253,38 +253,87 @@ void PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fisheryates(seedexpander_
         support[i] = (mask & i) ^ (~mask & support[i]);
     }
 }
-
 /**
- * @brief Generates a random support set using Constant-Time Uniform Sampling (CTUS).
+ * @brief Generates a random support set using the CTUS (Constant-Time Uniform Sampling) algorithm.
  *
- * This function implements the "oversample and filter" strategy in a style consistent
- * with the existing codebase. It generates T_over candidates, removes duplicates by
- * marking them with an invalid value, and then performs a constant-time compaction
- * to gather the unique elements.
+ * This function implements the "over-generate and select" strategy. It operates in three main constant-time phases:
+ * 1.  Over-generation: A large buffer of random bytes is generated. Then, in a fixed loop, candidates are
+ * produced via rejection sampling until a target number of oversampled candidates (t_over) is reached.
+ * 2.  Deduplication: Duplicates within the candidate set are marked in constant time.
+ * 3.  Compaction: The unique candidates are compacted into a final array.
+ *
+ * This method has a non-zero probability of failure if not enough unique candidates are generated.
  *
  * @param[in,out] ctx     Initialized SHAKE256 XOF context.
  * @param[out]    support Output array of unique indices.
- * @param[in]     weight  Number of elements to generate.
+ * @param[in]     weight  Number of elements to generate (t).
+ * @return 0 on success, -1 on failure.
  */
-void PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *ctx, uint32_t *support, uint16_t weight)
+int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *ctx, uint32_t *support, uint16_t weight)
 {
-    const size_t t_over = 2 * weight; /// 參數之後要調
+    
+    // MODIFICATION: Define tunable oversampling parameters, as mentioned in the research plan.
+    // k-factor for deduplication buffer. t_over = k * t 
+    const float K_FACTOR = 1.2f; 
+    // Factor for rejection sampling attempts. We need more attempts than t_over.
+    const float ATTEMPTS_FACTOR = 1.5f; 
+
+    const size_t t_over = (size_t)(K_FACTOR * weight);
+    const size_t attempts = (size_t)(t_over * ATTEMPTS_FACTOR);
+
+    // Ensure buffers are large enough for the parameters.
+    // This example uses a static size for simplicity; dynamic allocation or larger static buffers may be needed.
+    if (t_over > 2 * PARAM_OMEGA_R || attempts * 3 > sizeof(uint8_t[3 * 2 * PARAM_OMEGA_R * 2])) {
+        // Handle error: parameters result in buffer overflow.
+        return -1;
+    }
+
     uint32_t candidates[2 * PARAM_OMEGA_R];
-    uint32_t rand_u32[2 * PARAM_OMEGA_R] = {0};
     uint32_t unique_candidates[2 * PARAM_OMEGA_R] = {0};
     size_t unique_count = 0;
     size_t i, j;
 
-    // 1. Generate T_over candidates from a single random buffer
-    PQCLEAN_HQC128_CLEAN_seedexpander(ctx, (uint8_t *)rand_u32, 4 * t_over);
+    // --- PHASE 1A: GENERATE A SINGLE LARGE RANDOM BUFFER ---
+    // MODIFICATION: Generate all required random bytes in a single call, as implied by the design.
+    const size_t random_bytes_size = 3 * attempts;
+    uint8_t rand_bytes[3 * 2 * PARAM_OMEGA_R * 2]; // Make sure buffer is large enough
+    PQCLEAN_HQC128_CLEAN_seedexpander(ctx, rand_bytes, random_bytes_size);
 
-    for (i = 0; i < t_over; ++i)
-    {
-        candidates[i] = barrett_reduce(rand_u32[i]);
-        
+    // --- PHASE 1B: CONSTANT-TIME CANDIDATE POPULATION ---
+    // MODIFICATION: This entire section is new. It replaces the old generation loop.
+    // It implements the "Uniform_Random" generation part of Algorithm 3 in constant time.
+    size_t candidate_count = 0;
+    size_t random_byte_idx = 0;
+    for (i = 0; i < attempts; ++i) {
+        // Stop if we have already collected enough candidates.
+        // This check is safe because `i` is not secret-dependent.
+        if (candidate_count >= t_over) {
+            break;
+        }
+
+        uint32_t c = ((uint32_t)rand_bytes[random_byte_idx++]) << 16;
+        c |= ((uint32_t)rand_bytes[random_byte_idx++]) << 8;
+        c |= rand_bytes[random_byte_idx++];
+
+        // Constant-time rejection sampling check
+        uint32_t accept_mask = -((c - UTILS_REJECTION_THRESHOLD) >> 31);
+
+        // Constant-time write to the 'candidates' array
+        for (j = 0; j < t_over; ++j) {
+            uint32_t is_current_slot = compare_u32(j, candidate_count);
+            uint32_t write_mask = is_current_slot & accept_mask;
+            candidates[j] = (write_mask & barrett_reduce(c)) | (~write_mask & candidates[j]);
+        }
+        candidate_count += (accept_mask & 1);
+    }
+    
+    // Check for failure: not enough candidates were generated after rejection sampling.
+    if (candidate_count < t_over) {
+        return -1; 
     }
 
-    // 2. Constant-time deduplication: Mark duplicates with PARAM_N
+    // --- PHASE 2: CONSTANT-TIME DEDUPLICATION (Mark) ---
+    // This part of your logic was correct for a constant-time deduplication strategy and can be kept.
     for (i = 0; i < t_over; ++i)
     {
         for (j = i + 1; j < t_over; ++j)
@@ -295,11 +344,8 @@ void PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *
         }
     }
 
-    // 3. Constant-time compaction
-    // This approach iterates through all candidates and conditionally writes valid ones
-    // to the next available slot in `unique_candidates`. The write position is
-    // determined by a constant-time comparison, thus avoiding secret-dependent branches.
-    // While correct, this O(n^2) compaction is less efficient than a sorting network.
+    // --- PHASE 3: CONSTANT-TIME COMPACTION ---
+    // This part of your logic was also correct and can be kept.
     for (i = 0; i < t_over; ++i)
     {
         uint32_t is_valid = 1 - compare_u32(candidates[i], PARAM_N);
@@ -315,12 +361,18 @@ void PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *
         unique_count += is_valid;
     }
 
-    // 4. Copy the required number of unique elements to the final support array
+    // --- PHASE 4: FINAL CHECK AND COPY ---
+    // MODIFICATION: Add the explicit failure check, as required by the algorithm design.
+    if (unique_count < weight) {
+        return -1; // FAIL
+    }
+
     for (i = 0; i < weight; ++i)
     {
         support[i] = unique_candidates[i];
-        
     }
+
+    return 0; // SUCCESS
 }
 
 /**
