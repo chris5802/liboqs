@@ -12,6 +12,14 @@
 
 void PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(seedexpander_state *ctx, uint64_t *v, uint16_t weight);
 
+void PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_rejection(seedexpander_state *ctx, uint64_t *v, uint16_t weight);
+void PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fisheryates(seedexpander_state *ctx, uint64_t *v, uint16_t weight);
+void PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_ctus(seedexpander_state *ctx, uint64_t *v, uint16_t weight);
+void PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fixed_n(seedexpander_state *ctx, uint64_t *v, uint16_t weight);
+
+
+
+
 void PQCLEAN_HQC256_CLEAN_vect_set_random(seedexpander_state *ctx, uint64_t *v);
 
 
@@ -21,5 +29,11 @@ uint8_t PQCLEAN_HQC256_CLEAN_vect_compare(const uint8_t *v1, const uint8_t *v2, 
 
 void PQCLEAN_HQC256_CLEAN_vect_resize(uint64_t *o, uint32_t size_o, const uint64_t *v, uint32_t size_v);
 
+
+
+#ifdef OQS_ENABLE_TESTING
+int PQCLEAN_HQC256_CLEAN_vect_generate_random_support_ctus_testable(seedexpander_state *ctx, uint32_t *support, uint16_t weight, float k_factor, float attempts_factor);
+int PQCLEAN_HQC256_CLEAN_vect_generate_random_support_fixed_n_testable(seedexpander_state *ctx, uint32_t *support, uint16_t weight, float n_iterations_factor);
+#endif
 
 #endif

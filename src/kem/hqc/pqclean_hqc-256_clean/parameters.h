@@ -93,4 +93,7 @@
 #define SEED_BYTES                              40
 #define SALT_SIZE_BYTES                       16
 
+#define PARAM_N_MU 74517ULL   ///<  Define a precomputed multiplier for Barrett reduction mu = floor(2^32 / PARAM_N)
+#define UTILS_REJECTION_THRESHOLD             16772367 ///< Rejection threshold for uniform sampling in [0, PARAM_N)
+
 #endif

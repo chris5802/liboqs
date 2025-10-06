@@ -268,8 +268,8 @@ void PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fisheryates(seedexpander_
  */
 int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *ctx, uint32_t *support, uint16_t weight)
 {
-    const float K_FACTOR = 1.0f; // Increased this factor as a starting point
-    const float ATTEMPTS_FACTOR = 1.0f; 
+    const float K_FACTOR = 1.05f; // Increased this factor as a starting point
+    const float ATTEMPTS_FACTOR = 1.05f; 
 
     const size_t t_over = (size_t)(K_FACTOR * weight);
     const size_t attempts = (size_t)(t_over * ATTEMPTS_FACTOR);
@@ -282,6 +282,7 @@ int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *c
         free(candidates);
         free(unique_candidates);
         free(rand_bytes);
+        printf("fail -1\n");
         return -1;
     }
 
@@ -320,6 +321,7 @@ int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *c
 
     if (candidate_count < t_over) {
         result = -2;
+        
         goto cleanup;
     }
 
@@ -346,6 +348,7 @@ int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *c
 
     if (unique_count < weight) {
         result = -3;
+        
         goto cleanup;
     }
 
@@ -377,7 +380,7 @@ cleanup:
  */
 int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fixed_n(seedexpander_state *ctx, uint32_t *support, uint16_t weight)
 {
-    const size_t n_iterations = 1 * weight;
+    const size_t n_iterations = (size_t)(1.05f * weight);
     const size_t random_bytes_size = 3 * n_iterations;
     uint8_t rand_bytes[3 * 2 * PARAM_OMEGA_R];
     size_t count = 0;

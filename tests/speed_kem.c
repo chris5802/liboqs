@@ -18,22 +18,21 @@
 #include "system_info.c"
 
 static void fullcycletest(OQS_KEM *kem, uint8_t *public_key, uint8_t *secret_key, uint8_t *ciphertext, uint8_t *shared_secret_e, uint8_t *shared_secret_d) {
-	if (OQS_KEM_keypair(kem, public_key, secret_key) != OQS_SUCCESS) {
-		printf("Error creating KEM key. Exiting.\n");
-		exit(-1);
-	}
-	if (OQS_KEM_encaps(kem, ciphertext, shared_secret_e, public_key) != OQS_SUCCESS) {
-		printf("Error during KEM encaps. Exiting.\n");
-		exit(-1);
-	}
-	if (OQS_KEM_decaps(kem, shared_secret_d, ciphertext, secret_key) != OQS_SUCCESS) {
-		printf("Error during KEM decaps. Exiting.\n");
-		exit(-1);
-	}
-
+    if (OQS_KEM_keypair(kem, public_key, secret_key) != OQS_SUCCESS) {
+        printf("Error creating KEM key. Exiting.\n");
+        exit(-1);
+    }
+    if (OQS_KEM_encaps(kem, ciphertext, shared_secret_e, public_key) != OQS_SUCCESS) {
+        printf("Error during KEM encaps. Exiting.\n");
+        exit(-1);
+    }
+    if (OQS_KEM_decaps(kem, shared_secret_d, ciphertext, secret_key) != OQS_SUCCESS) {
+        printf("Error during KEM decaps. Exiting.\n");
+        exit(-1);
+    }
 }
 
-static OQS_STATUS kem_speed_wrapper(const char *method_name, uint64_t duration, bool printInfo, bool doFullCycle) {
+static OQS_STATUS kem_speed_wrapper(const char *method_name, uint64_t duration, uint64_t num_iterations, FILE *fp_out, bool printInfo, bool doFullCycle) {
 
 	OQS_KEM *kem = NULL;
 	uint8_t *public_key = NULL;
@@ -41,11 +40,16 @@ static OQS_STATUS kem_speed_wrapper(const char *method_name, uint64_t duration, 
 	uint8_t *ciphertext = NULL;
 	uint8_t *shared_secret_e = NULL;
 	uint8_t *shared_secret_d = NULL;
+
+	uint64_t *results_kg = NULL;
+	uint64_t *results_en = NULL;
+	uint64_t *results_de = NULL;
+
 	OQS_STATUS ret = OQS_ERROR;
 
 	kem = OQS_KEM_new(method_name);
 	if (kem == NULL) {
-		return OQS_SUCCESS;
+		return OQS_SUCCESS; // Ignore disabled KEMs
 	}
 
 	public_key = OQS_MEM_malloc(kem->length_public_key);
@@ -59,13 +63,77 @@ static OQS_STATUS kem_speed_wrapper(const char *method_name, uint64_t duration, 
 		goto err;
 	}
 
-	printf("%-36s | %10s | %14s | %15s | %10s | %25s | %10s\n", kem->method_name, "", "", "", "", "", "");
-	if (!doFullCycle) {
-		TIME_OPERATION_SECONDS(OQS_KEM_keypair(kem, public_key, secret_key), "keygen", duration)
-		TIME_OPERATION_SECONDS(OQS_KEM_encaps(kem, ciphertext, shared_secret_e, public_key), "encaps", duration)
-		TIME_OPERATION_SECONDS(OQS_KEM_decaps(kem, shared_secret_d, ciphertext, secret_key), "decaps", duration)
+	if (num_iterations > 0) {
+		// --- Iteration mode for constant-time analysis ---
+		results_kg = OQS_MEM_malloc(num_iterations * sizeof(uint64_t));
+		results_en = OQS_MEM_malloc(num_iterations * sizeof(uint64_t));
+		results_de = OQS_MEM_malloc(num_iterations * sizeof(uint64_t));
+		if (!results_kg || !results_en || !results_de) {
+			fprintf(stderr, "ERROR: OQS_MEM_malloc failed for results array\n");
+			goto err;
+		}
+
+		printf("Running %s for %" PRIu64 " iterations...\n", kem->method_name, num_iterations);
+
+		// Benchmark Keygen
+		for (uint64_t i = 0; i < num_iterations; i++) {
+			uint64_t start = _bench_rdtsc();
+			if (OQS_KEM_keypair(kem, public_key, secret_key) != OQS_SUCCESS) {
+				fprintf(stderr, "ERROR: OQS_KEM_keypair failed\n");
+				goto err;
+			}
+			uint64_t end = _bench_rdtsc();
+			results_kg[i] = end - start;
+		}
+
+		// Benchmark Encaps
+		if (OQS_KEM_keypair(kem, public_key, secret_key) != OQS_SUCCESS) {
+			fprintf(stderr, "ERROR: OQS_KEM_keypair for encaps failed\n");
+			goto err;
+		}
+		for (uint64_t i = 0; i < num_iterations; i++) {
+			uint64_t start = _bench_rdtsc();
+			if (OQS_KEM_encaps(kem, ciphertext, shared_secret_e, public_key) != OQS_SUCCESS) {
+				fprintf(stderr, "ERROR: OQS_KEM_encaps failed\n");
+				goto err;
+			}
+			uint64_t end = _bench_rdtsc();
+			results_en[i] = end - start;
+		}
+
+		// Benchmark Decaps
+		for (uint64_t i = 0; i < num_iterations; i++) {
+			uint64_t start = _bench_rdtsc();
+			if (OQS_KEM_decaps(kem, shared_secret_d, ciphertext, secret_key) != OQS_SUCCESS) {
+				fprintf(stderr, "ERROR: OQS_KEM_decaps failed\n");
+				goto err;
+			}
+			uint64_t end = _bench_rdtsc();
+			results_de[i] = end - start;
+		}
+
+		// Write results to file
+		printf("Writing results to file...\n");
+		for (uint64_t i = 0; i < num_iterations; i++) {
+			fprintf(fp_out, "%s,keypair,%" PRIu64 ",%" PRIu64 "\n", kem->method_name, i + 1, results_kg[i]);
+		}
+		for (uint64_t i = 0; i < num_iterations; i++) {
+			fprintf(fp_out, "%s,encaps,%" PRIu64 ",%" PRIu64 "\n", kem->method_name, i + 1, results_en[i]);
+		}
+		for (uint64_t i = 0; i < num_iterations; i++) {
+			fprintf(fp_out, "%s,decaps,%" PRIu64 ",%" PRIu64 "\n", kem->method_name, i + 1, results_de[i]);
+		}
+
 	} else {
-		TIME_OPERATION_SECONDS(fullcycletest(kem, public_key, secret_key, ciphertext, shared_secret_e, shared_secret_d), "fullcycletest", duration)
+		// --- Duration mode: original behavior ---
+		printf("%-36s | %10s | %14s | %15s | %10s | %25s | %10s\n", kem->method_name, "", "", "", "", "", "");
+		if (!doFullCycle) {
+			TIME_OPERATION_SECONDS(OQS_KEM_keypair(kem, public_key, secret_key), "keypair", duration);
+			TIME_OPERATION_SECONDS(OQS_KEM_encaps(kem, ciphertext, shared_secret_e, public_key), "encaps", duration);
+			TIME_OPERATION_SECONDS(OQS_KEM_decaps(kem, shared_secret_d, ciphertext, secret_key), "decaps", duration);
+		} else {
+			TIME_OPERATION_SECONDS(fullcycletest(kem, public_key, secret_key, ciphertext, shared_secret_e, shared_secret_d), "fullcycletest", duration);
+		}
 	}
 
 	if (printInfo) {
@@ -79,6 +147,9 @@ err:
 	ret = OQS_ERROR;
 
 cleanup:
+	OQS_MEM_insecure_free(results_kg);
+	OQS_MEM_insecure_free(results_en);
+	OQS_MEM_insecure_free(results_de);
 	if (kem != NULL) {
 		OQS_MEM_secure_free(secret_key, kem->length_secret_key);
 		OQS_MEM_secure_free(shared_secret_e, kem->length_shared_secret);
@@ -98,8 +169,8 @@ static OQS_STATUS printAlgs(void) {
 			printf("%s (disabled)\n", OQS_KEM_alg_identifier(i));
 		} else {
 			printf("%s\n", OQS_KEM_alg_identifier(i));
+			OQS_KEM_free(kem);
 		}
-		OQS_KEM_free(kem);
 	}
 	return OQS_SUCCESS;
 }
@@ -113,6 +184,8 @@ int main(int argc, char **argv) {
 	uint64_t duration = 3;
 	bool printKemInfo = false;
 	bool doFullCycle = false;
+	uint64_t num_iterations = 0;
+	char *output_filename = NULL;
 
 	OQS_KEM *single_kem = NULL;
 
@@ -144,6 +217,20 @@ int main(int argc, char **argv) {
 					continue;
 				}
 			}
+		} else if ((strcmp(argv[i], "--iterations") == 0) || (strcmp(argv[i], "-n") == 0)) {
+			if (i < argc - 1) {
+				num_iterations = (uint64_t)strtol(argv[i + 1], NULL, 10);
+				if (num_iterations > 0) {
+					i += 1;
+					continue;
+				}
+			}
+		} else if ((strcmp(argv[i], "--out") == 0) || (strcmp(argv[i], "-o") == 0)) {
+			if (i < argc - 1) {
+				output_filename = argv[i + 1];
+				i += 1;
+				continue;
+			}
 		} else if ((strcmp(argv[i], "--help") == 0) || (strcmp(argv[i], "-h") == 0)) {
 			printUsage = true;
 			break;
@@ -167,40 +254,64 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "\n");
 		fprintf(stderr, "<options>\n");
 		fprintf(stderr, "--algs             Print supported algorithms and terminate\n");
-		fprintf(stderr, "--duration n\n");
-		fprintf(stderr, " -d n              Run each speed test for approximately n seconds, default n=3\n");
-		fprintf(stderr, "--help\n");
-		fprintf(stderr, " -h                Print usage\n");
-		fprintf(stderr, "--info\n");
-		fprintf(stderr, " -i                Print info (sizes, security level) about each KEM\n");
-		fprintf(stderr, "--fullcycle\n");
-		fprintf(stderr, " -f                Do full keygen-encaps-decaps cycle for each KEM\n");
+		fprintf(stderr, "--duration n, -d n Run each speed test for approximately n seconds, default n=3\n");
+		fprintf(stderr, "--iterations n, -n n Run each test for exactly n iterations (for constant-time analysis)\n");
+		fprintf(stderr, "--out <filename>, -o <filename>  Write raw timing data to <filename> (requires --iterations)\n");
+		fprintf(stderr, "--help, -h         Print usage\n");
+		fprintf(stderr, "--info, -i         Print info (sizes, security level) about each KEM\n");
+		fprintf(stderr, "--fullcycle, -f    Do full keygen-encaps-decaps cycle for each KEM (only in duration mode)\n");
 		fprintf(stderr, "\n");
 		fprintf(stderr, "<alg>              Only run the specified KEM method; must be one of the algorithms output by --algs\n");
+		OQS_destroy();
 		return EXIT_FAILURE;
+	}
+
+	if ((num_iterations > 0) && (output_filename == NULL)) {
+		fprintf(stderr, "ERROR: --out <filename> is required when using --iterations.\n");
+		OQS_destroy();
+		return EXIT_FAILURE;
+	}
+
+	FILE *fp_out = NULL;
+	if (num_iterations > 0) {
+		fp_out = fopen(output_filename, "w");
+		if (fp_out == NULL) {
+			fprintf(stderr, "ERROR: Could not open %s for writing.\n", output_filename);
+			OQS_destroy();
+			return EXIT_FAILURE;
+		}
+		fprintf(fp_out, "algorithm,operation,iteration,cycles\n");
 	}
 
 	print_system_info();
 
 	printf("Speed test\n");
 	printf("==========\n");
-
-	PRINT_TIMER_HEADER
+	if (num_iterations == 0) {
+		PRINT_TIMER_HEADER
+	}
 	if (single_kem != NULL) {
-		rc = kem_speed_wrapper(single_kem->method_name, duration, printKemInfo, doFullCycle);
+		rc = kem_speed_wrapper(single_kem->method_name, duration, num_iterations, fp_out, printKemInfo, doFullCycle);
 		if (rc != OQS_SUCCESS) {
 			ret = EXIT_FAILURE;
 		}
 		OQS_KEM_free(single_kem);
 	} else {
 		for (size_t i = 0; i < OQS_KEM_algs_length; i++) {
-			rc = kem_speed_wrapper(OQS_KEM_alg_identifier(i), duration, printKemInfo, doFullCycle);
+			rc = kem_speed_wrapper(OQS_KEM_alg_identifier(i), duration, num_iterations, fp_out, printKemInfo, doFullCycle);
 			if (rc != OQS_SUCCESS) {
 				ret = EXIT_FAILURE;
 			}
 		}
 	}
-	PRINT_TIMER_FOOTER
+	if (num_iterations == 0) {
+		PRINT_TIMER_FOOTER
+	}
+
+	if (fp_out != NULL) {
+		fclose(fp_out);
+	}
+
 	OQS_destroy();
 
 	return ret;

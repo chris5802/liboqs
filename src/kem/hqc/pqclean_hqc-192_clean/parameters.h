@@ -93,4 +93,7 @@
 #define SEED_BYTES                              40
 #define SALT_SIZE_BYTES                       16
 
+#define PARAM_N_MU 119800ULL
+#define UTILS_REJECTION_THRESHOLD             16742417
+
 #endif
