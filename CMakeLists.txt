@@ -20,6 +20,12 @@ endif()
 
 project(liboqs C ASM)
 
+# Define sampling method for HQC
+# Options: 1=Original, 2=Latest(Default), 3=CTUS, 4=Fixed-N
+set(HQC_SAMPLING_METHOD 2 CACHE STRING "Select HQC sampling method")
+# Pass the definition to the C compiler
+add_compile_definitions("HQC_SAMPLING_METHOD=${HQC_SAMPLING_METHOD}")
+
 option(OQS_DIST_BUILD "Build distributable library with optimized code for several CPU microarchitectures. Enables run-time CPU feature detection." ON)
 option(OQS_BUILD_ONLY_LIB "Build only liboqs and do not expose build targets for tests, documentation, and pretty-printing available." OFF)
 set(OQS_MINIMAL_BUILD "" CACHE STRING "Only build specifically listed algorithms.")

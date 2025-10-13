@@ -91,22 +91,23 @@ void PQCLEAN_HQC256_CLEAN_hqc_secret_key_from_string(uint64_t *x, uint64_t *y, u
     memcpy(sigma, sk + SEED_BYTES, VEC_K_SIZE_BYTES);
     PQCLEAN_HQC256_CLEAN_seedexpander_init(&sk_seedexpander, sk, SEED_BYTES);
 
-    //PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, x, PARAM_OMEGA);
-    //PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, y, PARAM_OMEGA);
-
-    //Algorithm 1
+    #if HQC_SAMPLING_METHOD == 1
+    // Method 1: Original
+    PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, x, PARAM_OMEGA);
+    PQCLEAN_HQC256_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, y, PARAM_OMEGA);
+#elif HQC_SAMPLING_METHOD == 3
+    // Method 3: CTUS
+    PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_ctus(&sk_seedexpander, x, PARAM_OMEGA);
+    PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_ctus(&sk_seedexpander, y, PARAM_OMEGA);
+#elif HQC_SAMPLING_METHOD == 4
+    // Method 4: Fixed-N
+    PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fixed_n(&sk_seedexpander, x, PARAM_OMEGA);
+    PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fixed_n(&sk_seedexpander, y, PARAM_OMEGA);
+#else
+    // Method 2 (Default): Latest (Rejection Sampling for Keygen)
     PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_rejection(&sk_seedexpander, x, PARAM_OMEGA);
     PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_rejection(&sk_seedexpander, y, PARAM_OMEGA);
-
-
-    //Algorithm 3
-    //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_ctus(&sk_seedexpander, x, PARAM_OMEGA);
-    //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_ctus(&sk_seedexpander, y, PARAM_OMEGA);
-
-
-    //Algorithm 4
-    //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fixed_n(&sk_seedexpander, x, PARAM_OMEGA);
-    //PQCLEAN_HQC256_CLEAN_vect_sample_fixed_weight_fixed_n(&sk_seedexpander, y, PARAM_OMEGA);
+#endif
     memcpy(pk, sk + SEED_BYTES + VEC_K_SIZE_BYTES, PUBLIC_KEY_BYTES);
 
     PQCLEAN_HQC256_CLEAN_seedexpander_release(&sk_seedexpander);

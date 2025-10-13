@@ -268,7 +268,7 @@ void PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fisheryates(seedexpander_
  */
 int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *ctx, uint32_t *support, uint16_t weight)
 {
-    const float K_FACTOR = 1.05f; // Increased this factor as a starting point
+    const float K_FACTOR = 1.05f; 
     const float ATTEMPTS_FACTOR = 1.05f; 
 
     const size_t t_over = (size_t)(K_FACTOR * weight);
