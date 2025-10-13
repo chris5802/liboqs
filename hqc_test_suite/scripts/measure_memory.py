@@ -1,4 +1,3 @@
-
 import subprocess
 import re
 import sys
@@ -9,9 +8,15 @@ import csv
 # You can change the algorithms to test and the number of runs here
 ALGORITHMS_TO_TEST = ["HQC-128", "HQC-192", "HQC-256"]
 RUNS_PER_OPERATION = 1000
-OUTPUT_CSV_FILE = "memory_latest_benchmark_raw_data.csv"
+# The output CSV file is now passed as a command-line argument
 # --- End Configuration ---
 
+def get_output_filename():
+    """Gets the output filename from command-line arguments."""
+    if len(sys.argv) < 2:
+        print("Usage: python3 measure_memory.py <output_csv_file>")
+        sys.exit(1)
+    return sys.argv[1]
 
 def run_single_measurement(command):
     """Runs the command once and returns the memory usage in bytes, or None on failure."""
@@ -47,7 +52,9 @@ def main():
     Measures memory usage for a list of KEM algorithms, runs N times,
     and outputs every single run's result to a CSV file for later analysis.
     """
-    executable = "./build/tests/test_kem_mem"
+    output_csv_file = get_output_filename()
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    executable = os.path.join(script_dir, "..", "..", "build", "tests", "test_kem_mem")
     if not os.path.exists(executable):
         print(f"Error: Executable not found at {executable}")
         print("Please ensure the project has been built.")
@@ -58,11 +65,11 @@ def main():
     print("--- Starting Raw Data Memory Benchmark ---")
     print(f"Algorithms to test: {', '.join(ALGORITHMS_TO_TEST)}")
     print(f"Runs per operation: {RUNS_PER_OPERATION}")
-    print(f"Output CSV file: {OUTPUT_CSV_FILE}")
+    print(f"Output CSV file: {output_csv_file}")
     print("-" * 30)
 
     try:
-        with open(OUTPUT_CSV_FILE, 'w', newline='') as csvfile:
+        with open(output_csv_file, 'w', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
             # Write the header row
             header = ["algorithm", "operation", "run_number", "memory_bytes"]
@@ -92,7 +99,7 @@ def main():
         print(f"\nError writing to CSV file: {e}")
         return
 
-    print(f"\nBenchmark complete. All raw data has been saved to {OUTPUT_CSV_FILE}.")
+    print(f"\nBenchmark complete. All raw data has been saved to {output_csv_file}.")
 
 
 if __name__ == "__main__":

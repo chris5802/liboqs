@@ -4,11 +4,12 @@ import matplotlib.pyplot as plt
 import os
 
 # --- Configuration ---
+script_dir = os.path.dirname(os.path.realpath(__file__))
 DATA_FILES = {
-    "CTUS": "memory_ctus_benchmark_raw_data.csv",
-    "Fixed-N": "memory_fixed_n_benchmark_raw_data.csv",
-    "Latest": "memory_latest_benchmark_raw_data.csv",
-    "Original": "memory_original_benchmark_raw_data.csv"
+    "CTUS": os.path.join(script_dir, "..", "data", "memory", "memory_ctus_benchmark_raw_data.csv"),
+    "Fixed-N": os.path.join(script_dir, "..", "data", "memory", "memory_fixed-n_benchmark_raw_data.csv"),
+    "Latest": os.path.join(script_dir, "..", "data", "memory", "memory_latest_benchmark_raw_data.csv"),
+    "Original": os.path.join(script_dir, "..", "data", "memory", "memory_original_benchmark_raw_data.csv")
 }
 
 # The plot types you want to generate in the final report
@@ -88,7 +89,9 @@ def create_combined_plot(df, plot_type):
     # Adjust layout to make space for suptitle and the shared legend
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     
-    output_filename = f'memory_result_{plot_type}.png'
+    output_dir = os.path.join(script_dir, "..", "results", "memory_charts")
+    os.makedirs(output_dir, exist_ok=True)
+    output_filename = os.path.join(output_dir, f'memory_result_{plot_type}.png')
     try:
         plt.savefig(output_filename, dpi=300)
         print(f" -> Successfully saved combined plot to {output_filename}")

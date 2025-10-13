@@ -4,15 +4,31 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
+import sys
+import glob
+
+def get_hqc_level():
+    """Gets the HQC security level from command-line arguments."""
+    if len(sys.argv) < 2 or sys.argv[1] not in ['128', '192', '256']:
+        print("Usage: python3 visualize_performance.py <level>")
+        print("  <level> must be one of: 128, 192, 256")
+        sys.exit(1)
+    return sys.argv[1]
 
 # --- Data Loading ---
-# List of your CSV files
-file_paths = [
-    '/Users/trista/Documents/Project/oqs_project/liboqs/hqc256_ctus_data.csv',
-    '/Users/trista/Documents/Project/oqs_project/liboqs/hqc256_fixed_n_data.csv',
-    '/Users/trista/Documents/Project/oqs_project/liboqs/hqc256_latest_data.csv',
-    '/Users/trista/Documents/Project/oqs_project/liboqs/hqc256_original_data.csv',
-]
+level = get_hqc_level()
+script_dir = os.path.dirname(os.path.realpath(__file__))
+print(f"--- Generating visualization for HQC-{level} ---")
+
+# Use glob to find all relevant CSV files based on the level
+search_path = os.path.join(script_dir, "..", "data", "performance", f'hqc{level}_*_data.csv')
+file_paths = glob.glob(search_path)
+
+if not file_paths:
+    print(f"Warning: No data files found matching '{search_path}'. Exiting.")
+    sys.exit(0)
+
+print(f"Found data files: {file_paths}")
 
 # Read and combine the data from the files
 data_frames = []
@@ -20,14 +36,14 @@ for f_path in file_paths:
     try:
         df = pd.read_csv(f_path)
         # Create a 'source' column to identify the data's origin
-        source_name = os.path.basename(f_path).replace('hqc256_', '').replace('_data.csv', '')
+        source_name = os.path.basename(f_path).replace(f'hqc{level}_', '').replace('_data.csv', '')
         df['source'] = source_name
         data_frames.append(df)
     except FileNotFoundError:
         print(f"Warning: File not found at {f_path}")
 
 if not data_frames:
-    print("No data files found. Exiting.")
+    print("No data could be loaded. Exiting.")
     exit()
 
 # Combine all data into a single DataFrame
@@ -44,7 +60,7 @@ operations = ['keypair', 'encaps', 'decaps']
 
 # Create a figure with 3 subplots side-by-side, with INDEPENDENT y-axes
 fig, axes = plt.subplots(1, len(operations), figsize=(24, 8), sharey=False)
-fig.suptitle('HQC-256 Performance Comparison', fontsize=20, fontweight='bold')
+fig.suptitle(f'HQC-{level} Performance Comparison', fontsize=20, fontweight='bold')
 
 # Loop through each operation and its corresponding subplot axis
 for i, op in enumerate(operations):
@@ -54,7 +70,7 @@ for i, op in enumerate(operations):
     op_data = combined_df[combined_df['operation'] == op]
     
     # Create the boxplot on the current axis
-    sns.boxplot(x='source', y='cycles', data=op_data, ax=ax, palette='viridis')
+    sns.boxplot(x='source', y='cycles', hue='source', data=op_data, ax=ax, palette='viridis', legend=False)
     
     # Set subplot titles and labels
     ax.set_title(f'Operation: {op}', fontsize=16, fontweight='bold')
@@ -69,7 +85,9 @@ for i, op in enumerate(operations):
 
 # Adjust layout and save the plot
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-output_filename = 'hqc256_performance.png'
+output_dir = os.path.join(script_dir, "..", "results", "performance_charts")
+os.makedirs(output_dir, exist_ok=True)
+output_filename = os.path.join(output_dir, f'hqc{level}_performance.png')
 plt.savefig(output_filename, dpi=300, bbox_inches='tight')
 
 print(f"Successfully created the plot and saved it as '{output_filename}'")

@@ -125,25 +125,25 @@ void PQCLEAN_HQC128_CLEAN_hqc_pke_encrypt(uint64_t *u, uint64_t *v, uint8_t *m, 
     // Generate r1, r2 and e
 #if HQC_SAMPLING_METHOD == 1
     // Method 1: Original
-    printf("Method 1\n");
+    
     PQCLEAN_HQC128_CLEAN_vect_set_random_fixed_weight(&vec_seedexpander, r1, PARAM_OMEGA_R);
     PQCLEAN_HQC128_CLEAN_vect_set_random_fixed_weight(&vec_seedexpander, r2, PARAM_OMEGA_R);
     PQCLEAN_HQC128_CLEAN_vect_set_random_fixed_weight(&vec_seedexpander, e, PARAM_OMEGA_E);
 #elif HQC_SAMPLING_METHOD == 3
     // Method 3: CTUS
-    printf("Method 3\n");
+    
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(&vec_seedexpander, r1, PARAM_OMEGA_R);
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(&vec_seedexpander, r2, PARAM_OMEGA_R);
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(&vec_seedexpander, e, PARAM_OMEGA_E);
 #elif HQC_SAMPLING_METHOD == 4
     // Method 4: Fixed-N
-    printf("Method 4\n");
+    
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&vec_seedexpander, r1, PARAM_OMEGA_R);
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&vec_seedexpander, r2, PARAM_OMEGA_R);
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&vec_seedexpander, e, PARAM_OMEGA_E);
 #else
     // Method 2 (Default): Latest (Fisher-Yates for Encrypt)
-    printf("Method 2\n");
+   
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fisheryates(&vec_seedexpander, r1, PARAM_OMEGA_R);
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fisheryates(&vec_seedexpander, r2, PARAM_OMEGA_R);
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fisheryates(&vec_seedexpander, e, PARAM_OMEGA_E);
