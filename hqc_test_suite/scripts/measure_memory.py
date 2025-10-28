@@ -7,7 +7,7 @@ import csv
 # --- Configuration ---
 # You can change the algorithms to test and the number of runs here
 ALGORITHMS_TO_TEST = ["HQC-128", "HQC-192", "HQC-256"]
-RUNS_PER_OPERATION = 1000
+RUNS_PER_OPERATION = 10000
 # The output CSV file is now passed as a command-line argument
 # --- End Configuration ---
 
@@ -26,7 +26,7 @@ def run_single_measurement(command):
             command,
             capture_output=True,
             text=True,
-            check=True,
+            check=True, 
             timeout=30  # Add a timeout to prevent hangs
         )
         output = result.stderr

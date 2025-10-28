@@ -1,0 +1,7 @@
+operation,comparison,MWU_p,MWU_sig,T_p,T_sig
+keypair,latest,0.0,***,4.36413543953624e-31,***
+keypair,fixed-n,1.0,,1.0,
+encaps,latest,0.9999996081836491,,0.6278083364566132,
+encaps,fixed-n,1.0,,1.0,
+decaps,latest,1.1772485714670085e-58,***,0.0033742131089063107,**
+decaps,fixed-n,1.0,,1.0,

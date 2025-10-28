@@ -1,0 +1,10 @@
+source,operation,count,outlier_count,outlier_pct
+fixed-n,decaps,10000,865,8.649999999999999
+fixed-n,encaps,10000,821,8.21
+fixed-n,keypair,10000,686,6.859999999999999
+latest,decaps,10000,877,8.77
+latest,encaps,10000,925,9.25
+latest,keypair,10000,643,6.43
+original,decaps,10000,865,8.649999999999999
+original,encaps,10000,835,8.35
+original,keypair,10000,763,7.630000000000001

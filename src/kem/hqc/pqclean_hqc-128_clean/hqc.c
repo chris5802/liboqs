@@ -52,6 +52,7 @@ void PQCLEAN_HQC128_CLEAN_hqc_pke_keygen(uint8_t *pk, uint8_t *sk) {
 
 #if HQC_SAMPLING_METHOD == 1
     // Method 1: Original
+    printf("Original\n");
     PQCLEAN_HQC128_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, x, PARAM_OMEGA);
     PQCLEAN_HQC128_CLEAN_vect_set_random_fixed_weight(&sk_seedexpander, y, PARAM_OMEGA);
 
@@ -62,6 +63,7 @@ void PQCLEAN_HQC128_CLEAN_hqc_pke_keygen(uint8_t *pk, uint8_t *sk) {
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_ctus(&sk_seedexpander, y, PARAM_OMEGA);
 #elif HQC_SAMPLING_METHOD == 4
     // Method 4: Fixed-N
+    printf("Fixed-N\n");
     
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&sk_seedexpander, x, PARAM_OMEGA);
     PQCLEAN_HQC128_CLEAN_vect_sample_fixed_weight_fixed_n(&sk_seedexpander, y, PARAM_OMEGA);

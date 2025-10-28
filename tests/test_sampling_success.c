@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
 
     fprintf(output_stream, "Algorithm,Weight,Parameter 1,Parameter 2,Successes,Failures,Success Rate (%%),Avg. Time (ms)\n");
 
-    float hyperfine_factors[] = {1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, 1.08, 1.09, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15};
+    float hyperfine_factors[] = {1.01f, 1.02f, 1.03f, 1.04f, 1.05f, 1.06f, 1.07f, 1.08f, 1.09f, 1.10f, 1.11f, 1.12f, 1.13f, 1.14f, 1.15f};
     size_t num_factors = sizeof(hyperfine_factors)/sizeof(hyperfine_factors[0]);
 
     for (size_t w_idx = 0; w_idx < sizeof(weights_to_test)/sizeof(weights_to_test[0]); ++w_idx) {

@@ -23,7 +23,7 @@ VISUALIZE_MEM_SCRIPT="${TEST_SUITE_DIR}/scripts/visualize_memory.py"
 METHODS=(1 2 3 4)
 METHOD_NAMES=("original" "latest" "ctus" "fixed-n")
 LEVELS=(128 192 256)
-SPEED_TEST_ITERATIONS=1000
+SPEED_TEST_ITERATIONS=10000
 
 # --- Activate Python Virtual Environment ---
 VENV_ACTIVATE="${LIBOQS_DIR}/.venv/bin/activate"

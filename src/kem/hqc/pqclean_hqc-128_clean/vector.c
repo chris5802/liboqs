@@ -72,7 +72,7 @@ void vect_write_support_to_vector(uint64_t *v, uint32_t *support, uint16_t weigh
         for (uint32_t j = 0; j < weight; j++) {
             uint32_t tmp = i - index_tab[j];
             int val1 = 1 ^ ((tmp | -tmp) >> 31);
-            uint64_t mask = -val1;
+            uint64_t mask = -(uint64_t)val1;
             val |= (bit_tab[j] & mask);
         }
         v[i] |= val;
@@ -132,7 +132,7 @@ void PQCLEAN_HQC128_CLEAN_vect_set_random_fixed_weight(seedexpander_state *ctx, 
 
     for (size_t i = 0; i < weight; ++i) {
         support[i] = rand_bytes[4 * i];
-        support[i] |= rand_bytes[4 * i + 1] << 8;
+        support[i] |= (uint32_t)rand_bytes[4 * i + 1] << 8;
         support[i] |= (uint32_t)rand_bytes[4 * i + 2] << 16;
         support[i] |= (uint32_t)rand_bytes[4 * i + 3] << 24;
         support[i] = (uint32_t)(i + reduce(support[i], i)); // use constant-tme reduction
@@ -239,18 +239,18 @@ void PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fisheryates(seedexpander_
 
     for (size_t i = 0; i < weight; ++i) {
         uint64_t buff = rand_u32[i];
-        support[i] = i + ((buff * (PARAM_N - i)) >> 32);
+        support[i] = (uint32_t)i + (uint32_t)((buff * (PARAM_N - i)) >> 32);
     }
 
     for (int32_t i = (weight - 1); i-- > 0;) {
         uint32_t found = 0;
 
-        for (size_t j = i + 1; j < weight; ++j) {
+        for (size_t j = (size_t)i + 1; j < weight; ++j) {
             found |= compare_u32(support[j], support[i]);
         }
 
         uint32_t mask = -found;
-        support[i] = (mask & i) ^ (~mask & support[i]);
+        support[i] = (mask & (uint32_t)i) ^ (~mask & support[i]);
     }
 }
 #include <stdlib.h> // Needed for malloc and free
@@ -305,7 +305,7 @@ int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *c
 
         for (j = 0; j < t_over; ++j) {
             // --- START OF BUG FIX ---
-            uint32_t is_current_slot_val = compare_u32(j, candidate_count);
+            uint32_t is_current_slot_val = compare_u32((uint32_t)j, (uint32_t)candidate_count);
             // Convert the 0 or 1 value into a full 32-bit mask.
             uint32_t is_current_slot_mask = -is_current_slot_val;
             // Now the write_mask is correctly calculated.
@@ -338,7 +338,7 @@ int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus(seedexpander_state *c
         uint32_t is_valid = 1 - compare_u32(candidates[i], PARAM_N);
         uint32_t mask = -is_valid;
         for (j = 0; j < t_over; ++j) {
-            uint32_t is_current_slot = compare_u32(j, unique_count);
+            uint32_t is_current_slot = compare_u32((uint32_t)j, (uint32_t)unique_count);
             uint32_t mask_is_current_slot = -is_current_slot; // Correctly convert to mask here as well
             uint32_t write_mask = mask_is_current_slot & mask;
             unique_candidates[j] = (write_mask & candidates[i]) | (~write_mask & unique_candidates[j]);
@@ -420,7 +420,7 @@ int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fixed_n(seedexpander_state
         // Conditionally write the new candidate `c` to the position `support[count]`.
         for (j = 0; j < weight; ++j)
         {
-            uint32_t is_current_slot = compare_u32(j, count);
+            uint32_t is_current_slot = compare_u32((uint32_t)j, (uint32_t)count);
             uint32_t write_mask = is_current_slot & final_add_mask;
             support[j] = (write_mask & c) | (~write_mask & support[j]);
         }
@@ -602,7 +602,7 @@ int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus_testable(seedexpander
         uint32_t final_write_mask = accept_mask & space_available_mask;
 
         for (j = 0; j < t_over; ++j) {
-            uint32_t is_current_slot_val = compare_u32(j, candidate_count);
+            uint32_t is_current_slot_val = compare_u32((uint32_t)j, (uint32_t)candidate_count);
             uint32_t is_current_slot_mask = -is_current_slot_val;
             uint32_t write_mask = is_current_slot_mask & final_write_mask;
             candidates[j] = (write_mask & barrett_reduce(c)) | (~write_mask & candidates[j]);
@@ -629,7 +629,7 @@ int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_ctus_testable(seedexpander
         uint32_t is_valid = 1 - compare_u32(candidates[i], PARAM_N);
         uint32_t mask = -is_valid;
         for (j = 0; j < t_over; ++j) {
-            uint32_t is_current_slot = compare_u32(j, unique_count);
+            uint32_t is_current_slot = compare_u32((uint32_t)j, (uint32_t)unique_count);
             uint32_t mask_is_current_slot = -is_current_slot;
             uint32_t write_mask = mask_is_current_slot & mask;
             unique_candidates[j] = (write_mask & candidates[i]) | (~write_mask & unique_candidates[j]);
@@ -690,7 +690,7 @@ int PQCLEAN_HQC128_CLEAN_vect_generate_random_support_fixed_n_testable(seedexpan
         uint32_t final_add_mask = accept_mask & unique_mask & space_available_mask;
 
         for (j = 0; j < weight; ++j) {
-            uint32_t is_current_slot = compare_u32(j, count);
+            uint32_t is_current_slot = compare_u32((uint32_t)j, (uint32_t)count);
             uint32_t write_mask = is_current_slot & final_add_mask;
             support[j] = (write_mask & c) | (~write_mask & support[j]);
         }

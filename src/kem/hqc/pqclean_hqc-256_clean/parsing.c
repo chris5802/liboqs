@@ -41,7 +41,7 @@ void PQCLEAN_HQC256_CLEAN_load8_arr(uint64_t *out64, size_t outlen, const uint8_
     out64[index_out] = in8[inlen - 1];
     for (int8_t i = (int8_t)(inlen - index_in) - 2; i >= 0; --i) {
         out64[index_out] <<= 8;
-        out64[index_out] |= in8[index_in + i];
+        out64[index_out] |= in8[index_in + (size_t)i];
     }
 }
 
